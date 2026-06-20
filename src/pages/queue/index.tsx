@@ -1,154 +1,185 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView } from '@tarojs/components';
+import { View, Text, Input, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import { useAppStore } from '@/store';
 import QueueCard from '@/components/QueueCard';
-import { TicketStatus } from '@/types';
-import { getTicketStatusColor } from '@/utils';
+import { TicketStatus, ServiceType } from '@/types';
 import styles from './index.module.scss';
 
-const statusFilters: Array<{ key: 'all' | TicketStatus; label: string }> = [
+const statusChips = [
   { key: 'all', label: '全部' },
-  { key: 'waiting', label: '等待' },
-  { key: 'calling', label: '叫号' },
+  { key: 'waiting', label: '等待中' },
+  { key: 'serving', label: '服务中' },
   { key: 'passed', label: '过号' },
-  { key: 'completed', label: '完成' },
+  { key: 'completed', label: '已完成' },
+  { key: 'void', label: '作废' },
+];
+
+const serviceTypeList: Array<{ key: ServiceType; icon: string; name: string; desc: string }> = [
+  { key: 'swap', icon: '🔋', name: '换电', desc: '约3-5分钟' },
+  { key: 'charge', icon: '⚡', name: '快充', desc: '约20-30分钟' },
+  { key: 'check', icon: '🔧', name: '检修', desc: '约15-30分钟' },
+  { key: 'consult', icon: '💬', name: '咨询', desc: '约5-10分钟' },
 ];
 
 const QueuePage: React.FC = () => {
-  const { queueTickets, stations, selectedStationId, setSelectedStationId, callNextTicket, handlePassTicket } = useAppStore();
-  const [activeStatus, setActiveStatus] = useState<'all' | TicketStatus>('all');
+  const {
+    queueTickets,
+    stations,
+    selectedStationId,
+    setSelectedStationId,
+    currentCallingTicket,
+    callNextTicket,
+    addTicket,
+  } = useAppStore();
 
-  const currentStation = stations.find(s => s.id === selectedStationId);
-  const stationTickets = useMemo(() => {
-    return queueTickets.filter(t => t.stationId === selectedStationId);
+  const [activeChip, setActiveChip] = useState<string>('all');
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({
+    ownerName: '',
+    phone: '',
+    vehiclePlate: '',
+    serviceType: 'swap' as ServiceType,
+    batteryHealthEstimate: 'A' as 'A' | 'B' | 'C' | 'D',
+    remark: '',
+  });
+
+  const currentStation = stations.find(s => s.id === selectedStationId) || stations[0];
+
+  const filteredTickets = useMemo(() => {
+    return queueTickets
+      .filter(t => t.stationId === selectedStationId)
+      .filter(t => activeChip === 'all' || t.status === activeChip)
+      .sort((a, b) => {
+        if (a.status === 'serving' && b.status !== 'serving') return -1;
+        if (b.status === 'serving' && a.status !== 'serving') return 1;
+        return a.sequence - b.sequence;
+      });
+  }, [queueTickets, selectedStationId, activeChip]);
+
+  const stats = useMemo(() => {
+    const stationTickets = queueTickets.filter(t => t.stationId === selectedStationId);
+    return {
+      waiting: stationTickets.filter(t => t.status === 'waiting').length,
+      serving: stationTickets.filter(t => t.status === 'serving').length,
+      completed: stationTickets.filter(t => t.status === 'completed').length,
+    };
   }, [queueTickets, selectedStationId]);
 
-  const callingTicket = stationTickets.find(t => t.status === 'calling');
-  const servingTicket = stationTickets.find(t => t.status === 'serving');
-  const waitingCount = stationTickets.filter(t => t.status === 'waiting').length;
-  const completedCount = stationTickets.filter(t => t.status === 'completed').length;
-
-  const displayList = useMemo(() => {
-    let list = stationTickets;
-    if (activeStatus !== 'all') {
-      list = list.filter(t => t.status === activeStatus);
-    }
-    const order: Record<string, number> = {
-      calling: 0,
-      serving: 1,
-      waiting: 2,
-      passed: 3,
-      completed: 4,
-      void: 5,
-    };
-    return [...list].sort((a, b) => {
-      if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
-      return a.sequence - b.sequence;
-    });
-  }, [stationTickets, activeStatus]);
-
-  const handleNextCall = () => {
-    callNextTicket();
-    Taro.vibrateShort({ type: 'medium' });
-  };
-
-  const handleCurrentPass = () => {
-    if (!callingTicket) return;
-    const willVoid = callingTicket.passCount + 1 >= 3;
-    Taro.showModal({
-      title: willVoid ? '过号作废确认' : '过号重排确认',
-      content: willVoid
-        ? `车主已连续过号${callingTicket.passCount}次，本次过号后将自动作废，是否继续？`
-        : `叫号中的 ${callingTicket.ticketNo} ${callingTicket.ownerName} 未到，过号后将重排队尾。`,
-      confirmColor: willVoid ? '#F53F3F' : '#FF7D00',
-      confirmText: willVoid ? '确认作废' : '确认过号',
-      success: (res) => {
-        if (res.confirm) {
-          handlePassTicket(callingTicket.id);
-          Taro.showToast({
-            title: willVoid ? '已作废' : '已重排队尾',
-            icon: 'none',
-          });
-          if (!willVoid) {
-            setTimeout(() => callNextTicket(), 500);
-          }
-        }
-      },
-    });
+  const handleTicketClick = (id: string) => {
+    Taro.navigateTo({ url: `/pages/ticket-detail/index?id=${id}` });
   };
 
   const handleNewTicket = () => {
-    Taro.showActionSheet({
-      itemList: ['换电服务', '充电服务', '电池检测'],
-      success: () => {
-        Taro.showToast({ title: '取号成功', icon: 'success' });
-      },
+    setForm({
+      ownerName: '',
+      phone: '',
+      vehiclePlate: '',
+      serviceType: 'swap',
+      batteryHealthEstimate: 'A',
+      remark: '',
     });
+    setShowModal(true);
   };
 
-  const goTicketDetail = (id: string) => {
-    Taro.navigateTo({ url: `/pages/ticket-detail/index?id=${id}` });
+  const closeModal = () => setShowModal(false);
+
+  const validateAndSubmit = () => {
+    if (!form.ownerName.trim()) {
+      Taro.showToast({ title: '请输入车主姓名', icon: 'none' });
+      return;
+    }
+    if (!form.phone.trim() || form.phone.length < 7) {
+      Taro.showToast({ title: '请输入正确的手机号', icon: 'none' });
+      return;
+    }
+    if (!form.vehiclePlate.trim()) {
+      Taro.showToast({ title: '请输入车牌号', icon: 'none' });
+      return;
+    }
+
+    const newTicket = addTicket({
+      stationId: selectedStationId,
+      ownerName: form.ownerName.trim(),
+      phone: form.phone.trim(),
+      vehiclePlate: form.vehiclePlate.trim().toUpperCase(),
+      serviceType: form.serviceType,
+      remark: form.remark.trim() || undefined,
+    });
+
+    console.log('[Queue] 新车取号成功:', newTicket.ticketNo);
+    Taro.showToast({ title: `取号成功 ${newTicket.ticketNo}`, icon: 'success' });
+    setShowModal(false);
+
+    setTimeout(() => {
+      Taro.navigateTo({ url: `/pages/ticket-detail/index?id=${newTicket.id}` });
+    }, 700);
+  };
+
+  const handleCallNext = () => {
+    const next = callNextTicket();
+    if (next) {
+      console.log('[Queue] 叫号:', next.ticketNo, next.ownerName);
+      Taro.showToast({ title: `叫号 ${next.ticketNo}`, icon: 'none' });
+    } else {
+      Taro.showToast({ title: '暂无等待中的号码', icon: 'none' });
+    }
+  };
+
+  const onChange = (key: keyof typeof form, value: any) => {
+    setForm(prev => ({ ...prev, [key]: value }));
   };
 
   return (
     <ScrollView scrollY className={styles.page}>
-      {callingTicket ? (
+      {currentCallingTicket && (
         <View className={styles.currentCall}>
-          <View className={styles.callBadge}>📢 叫号中</View>
-          <Text className={styles.callLabel}>当前叫号 · 请前往办理</Text>
-          <Text className={styles.callTicketNo}>{callingTicket.ticketNo}</Text>
+          <View className={styles.callBadge}>� 正在叫号</View>
+          <Text className={styles.callLabel}>CURRENT CALLING</Text>
+          <Text className={styles.callTicketNo}>{currentCallingTicket.ticketNo}</Text>
           <View className={styles.callInfo}>
             <View className={styles.callOwner}>
-              <View className={styles.callAvatar}>{callingTicket.ownerName.charAt(0)}</View>
-              <Text className={styles.callName}>{callingTicket.ownerName}</Text>
+              <View className={styles.callAvatar}>
+                {currentCallingTicket.ownerName.slice(0, 1)}
+              </View>
+              <Text className={styles.callName}>{currentCallingTicket.ownerName}</Text>
             </View>
-            <Text className={styles.callPlate}>{callingTicket.vehiclePlate}</Text>
-            <Text className={styles.callService}>{callingTicket.serviceTypeLabel}</Text>
+            <Text className={styles.callPlate}>{currentCallingTicket.vehiclePlate}</Text>
+            <Text className={styles.callService}>
+              {currentCallingTicket.serviceType === 'swap' && '🔋 换电'}
+              {currentCallingTicket.serviceType === 'charge' && '⚡ 快充'}
+              {currentCallingTicket.serviceType === 'check' && '🔧 检修'}
+              {currentCallingTicket.serviceType === 'consult' && '💬 咨询'}
+            </Text>
           </View>
-        </View>
-      ) : (
-        <View className={styles.currentCall} style={{ background: 'linear-gradient(135deg, #E8FBF9 0%, #FFFFFF 100%)', borderColor: 'rgba(15, 198, 194, 0.3)' }}>
-          <Text className={styles.callLabel} style={{ color: '#0FC6C2' }}>队列状态 · 暂无叫号</Text>
-          <Text className={styles.callTicketNo} style={{ color: '#0FC6C2', fontSize: 56 }}>
-            {currentStation?.name}
-          </Text>
-          <Text className={styles.callInfo} style={{ fontSize: 24, color: '#86909C' }}>
-            请点击下方「叫下一号」开始叫号服务
-          </Text>
         </View>
       )}
 
       <View className={styles.statsRow}>
         <View className={styles.statBox}>
-          <Text className={`${styles.statNum} ${styles.statNumWait}`}>{waitingCount}</Text>
+          <Text className={classnames(styles.statNum, styles.statNumWait)}>{stats.waiting}</Text>
           <Text className={styles.statDesc}>等待中</Text>
         </View>
         <View className={styles.statBox}>
-          <Text className={`${styles.statNum} ${styles.statNumServing}`}>{servingTicket ? 1 : 0}</Text>
+          <Text className={classnames(styles.statNum, styles.statNumServing)}>{stats.serving}</Text>
           <Text className={styles.statDesc}>服务中</Text>
         </View>
         <View className={styles.statBox}>
-          <Text className={`${styles.statNum} ${styles.statNumDone}`}>{completedCount}</Text>
+          <Text className={classnames(styles.statNum, styles.statNumDone)}>{stats.completed}</Text>
           <Text className={styles.statDesc}>已完成</Text>
         </View>
       </View>
 
       <ScrollView scrollX className={styles.stationSelector}>
-        {stations.map(station => (
+        {stations.map(st => (
           <View
-            key={station.id}
-            className={classnames(
-              styles.stationItem,
-              selectedStationId === station.id && styles.stationActive
-            )}
-            onClick={() => setSelectedStationId(station.id)}
+            key={st.id}
+            className={classnames(styles.stationItem, st.id === selectedStationId && styles.stationActive)}
+            onClick={() => setSelectedStationId(st.id)}
           >
-            <Text className={styles.stationName}>{station.name.slice(0, 6)}</Text>
-            <Text className={styles.stationAvailable}>
-              电池{station.availableBatteries}/{station.totalBatteries} · 等{station.waitingCount}
-            </Text>
+            <Text className={styles.stationName}>📍 {st.name}</Text>
+            <Text className={styles.stationAvailable}>等待 {st.waitingCount} 人</Text>
           </View>
         ))}
       </ScrollView>
@@ -159,52 +190,132 @@ const QueuePage: React.FC = () => {
           队列列表
         </Text>
         <View className={styles.statusChips}>
-          {statusFilters.map(f => (
-            <Text
-              key={f.key}
-              className={classnames(
-                styles.chip,
-                activeStatus === f.key && styles.chipActive
-              )}
-              style={activeStatus === f.key ? { background: f.key === 'all' ? '#165DFF' : getTicketStatusColor(f.key as TicketStatus) } : undefined}
-              onClick={() => setActiveStatus(f.key)}
+          {statusChips.map(chip => (
+            <View
+              key={chip.key}
+              className={classnames(styles.chip, activeChip === chip.key && styles.chipActive)}
+              onClick={() => setActiveChip(chip.key)}
             >
-              {f.label}
-            </Text>
+              {chip.label}
+            </View>
           ))}
         </View>
       </View>
 
-      {displayList.length > 0 ? (
-        displayList.map(ticket => (
-          <QueueCard
-            key={ticket.id}
-            ticket={ticket}
-            onClick={() => goTicketDetail(ticket.id)}
-          />
+      {filteredTickets.length > 0 ? (
+        filteredTickets.map(ticket => (
+          <View key={ticket.id} onClick={() => handleTicketClick(ticket.id)}>
+            <QueueCard ticket={ticket} />
+          </View>
         ))
       ) : (
         <View className={styles.emptyState}>
           <Text className={styles.emptyIcon}>🎫</Text>
-          <Text className={styles.emptyText}>暂无该状态的取号记录</Text>
+          <Text className={styles.emptyText}>当前状态暂无号码</Text>
         </View>
       )}
 
       <View className={styles.bottomBar}>
-        <View className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleNextCall}>
-          叫下一号
+        <View className={classnames(styles.btn, styles.btnPrimary)} onClick={handleCallNext}>
+          🔊 叫下一位
         </View>
-        {callingTicket && (
-          <View className={`${styles.btn} ${styles.btnWarning}`} onClick={handleCurrentPass}>
-            当前车主未到
-          </View>
-        )}
-        {!callingTicket && (
-          <View className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleNewTicket} style={{ background: 'linear-gradient(135deg, #722ED1, #9E64FF)', boxShadow: '0 4rpx 16rpx rgba(114, 46, 209, 0.3)' }}>
-            + 新车取号
-          </View>
-        )}
+        <View className={classnames(styles.btn, styles.btnWarning)} onClick={handleNewTicket}>
+          ＋ 新车取号
+        </View>
       </View>
+
+      {showModal && (
+        <View className={styles.modalMask} onClick={closeModal}>
+          <ScrollView
+            scrollY
+            className={styles.modalSheet}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <View className={styles.modalHeader}>
+              <Text className={styles.modalTitle}>新车取号登记</Text>
+              <View className={styles.modalClose} onClick={closeModal}>×</View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>服务类型
+              </Text>
+              <View className={styles.serviceOptions}>
+                {serviceTypeList.map(svc => (
+                  <View
+                    key={svc.key}
+                    className={classnames(
+                      styles.serviceOption,
+                      form.serviceType === svc.key && styles.serviceOptionActive
+                    )}
+                    onClick={() => onChange('serviceType', svc.key)}
+                  >
+                    <Text className={styles.serviceIcon}>{svc.icon}</Text>
+                    <Text className={styles.serviceName}>{svc.name}</Text>
+                    <Text className={styles.serviceDesc}>{svc.desc}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>车主姓名
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                placeholder="请输入车主姓名"
+                placeholderClass="ph"
+                value={form.ownerName}
+                onInput={(e) => onChange('ownerName', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>联系电话
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                type="number"
+                placeholder="请输入手机号"
+                placeholderClass="ph"
+                value={form.phone}
+                onInput={(e) => onChange('phone', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>车牌号
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                placeholder="如：京AD88888"
+                placeholderClass="ph"
+                value={form.vehiclePlate}
+                onInput={(e) => onChange('vehiclePlate', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>备注（选填）</Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                placeholder="如：加急、车辆问题简述"
+                placeholderClass="ph"
+                value={form.remark}
+                onInput={(e) => onChange('remark', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formActions}>
+              <View className={styles.btnCancel} onClick={closeModal}>取消</View>
+              <View className={styles.btnSubmit} onClick={validateAndSubmit}>确认取号</View>
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </ScrollView>
   );
 };

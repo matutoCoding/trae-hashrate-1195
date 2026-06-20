@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Input, ScrollView } from '@tarojs/components';
+import { View, Text, Input, ScrollView, Textarea } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import { useAppStore } from '@/store';
@@ -27,11 +27,30 @@ const healthFilters: Array<{ key: 'all' | BatteryHealthLevel; label: string; des
   { key: 'D', label: 'D级', desc: '较差' },
 ];
 
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const fiveYearsLater = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 5);
+  return d.toISOString().slice(0, 10);
+};
+
 const BatchPage: React.FC = () => {
-  const { batches } = useAppStore();
+  const { batches, addBatch } = useAppStore();
   const [searchText, setSearchText] = useState('');
-  const [activeStatus, setActiveStatus] = useState('all');
+  const [activeStatus, setActiveStatus] = useState<string>('all');
   const [activeHealth, setActiveHealth] = useState<'all' | BatteryHealthLevel>('all');
+
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({
+    batchNo: '',
+    supplier: '',
+    manufactureDate: todayStr(),
+    expireDate: fiveYearsLater(),
+    inspector: '',
+    healthLevel: 'A' as BatteryHealthLevel,
+    totalQuantity: 50,
+    remark: '',
+  });
 
   const filteredBatches = useMemo(() => {
     return batches.filter(batch => {
@@ -48,17 +67,65 @@ const BatchPage: React.FC = () => {
     Taro.navigateTo({ url: `/pages/batch-detail/index?id=${id}` });
   };
 
-  const handleFab = () => {
-    Taro.showModal({
-      title: '新增入库',
-      content: '是否录入新批次电池？',
-      confirmColor: '#0FC6C2',
-      success: (res) => {
-        if (res.confirm) {
-          Taro.showToast({ title: '入库功能开发中', icon: 'none' });
-        }
-      },
+  const openModal = () => {
+    const today = todayStr();
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 5);
+    setForm({
+      batchNo: '',
+      supplier: '',
+      manufactureDate: today,
+      expireDate: d.toISOString().slice(0, 10),
+      inspector: '',
+      healthLevel: 'A',
+      totalQuantity: 50,
+      remark: '',
     });
+    setShowModal(true);
+  };
+
+  const closeModal = () => setShowModal(false);
+
+  const validateAndSubmit = () => {
+    if (!form.batchNo.trim()) {
+      Taro.showToast({ title: '请输入批次号', icon: 'none' });
+      return;
+    }
+    if (!form.supplier.trim()) {
+      Taro.showToast({ title: '请输入供应商', icon: 'none' });
+      return;
+    }
+    if (!form.inspector.trim()) {
+      Taro.showToast({ title: '请输入验收人', icon: 'none' });
+      return;
+    }
+    if (!form.totalQuantity || form.totalQuantity <= 0) {
+      Taro.showToast({ title: '请输入正确的入库数量', icon: 'none' });
+      return;
+    }
+
+    const newBatch = addBatch({
+      batchNo: form.batchNo.trim(),
+      supplier: form.supplier.trim(),
+      manufactureDate: form.manufactureDate,
+      expireDate: form.expireDate,
+      inspector: form.inspector.trim(),
+      healthLevel: form.healthLevel,
+      totalQuantity: form.totalQuantity,
+      remark: form.remark.trim() || undefined,
+    });
+
+    console.log('[Batch] 新增入库批次:', newBatch.batchNo);
+    Taro.showToast({ title: '入库成功', icon: 'success' });
+    setShowModal(false);
+
+    setTimeout(() => {
+      Taro.navigateTo({ url: `/pages/batch-detail/index?id=${newBatch.id}` });
+    }, 600);
+  };
+
+  const onChange = (key: keyof typeof form, value: any) => {
+    setForm(prev => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -129,7 +196,139 @@ const BatchPage: React.FC = () => {
         </View>
       )}
 
-      <View className={styles.fabButton} onClick={handleFab}>+</View>
+      <View className={styles.fabButton} onClick={openModal}>
+        + 新增入库
+      </View>
+
+      {showModal && (
+        <View className={styles.modalMask} onClick={closeModal}>
+          <ScrollView
+            scrollY
+            className={styles.modalSheet}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <View className={styles.modalHeader}>
+              <Text className={styles.modalTitle}>电池到货验收入库</Text>
+              <View className={styles.modalClose} onClick={closeModal}>×</View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>批次号
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                placeholder="如：BA-NINGDE-20260620-X123"
+                placeholderClass="ph"
+                value={form.batchNo}
+                onInput={(e) => onChange('batchNo', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>供应商
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                placeholder="如：宁德时代新能源科技股份有限公司"
+                placeholderClass="ph"
+                value={form.supplier}
+                onInput={(e) => onChange('supplier', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>验收人
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                placeholder="请输入验收人姓名"
+                placeholderClass="ph"
+                value={form.inspector}
+                onInput={(e) => onChange('inspector', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>健康等级
+              </Text>
+              <View className={styles.healthOptions}>
+                {(['A', 'B', 'C', 'D'] as BatteryHealthLevel[]).map(level => (
+                  <View
+                    key={level}
+                    className={styles.healthOption}
+                    style={{
+                      borderColor: form.healthLevel === level ? getHealthLevelColor(level) : 'transparent',
+                      color: getHealthLevelColor(level),
+                    }}
+                    onClick={() => onChange('healthLevel', level)}
+                  >
+                    <Text className={styles.optionLabel}>{level}级</Text>
+                    <Text className={styles.optionDesc}>{getHealthLevelLabel(level).slice(2)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>
+                <Text className={styles.requiredDot}>*</Text>入库数量
+              </Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                type="number"
+                placeholder="请输入电池块数"
+                placeholderClass="ph"
+                value={String(form.totalQuantity)}
+                onInput={(e) => onChange('totalQuantity', parseInt(e.detail.value) || 0)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>生产日期</Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                type="text"
+                placeholder="YYYY-MM-DD"
+                placeholderClass="ph"
+                value={form.manufactureDate}
+                onInput={(e) => onChange('manufactureDate', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>失效日期</Text>
+              <Input
+                className={classnames(styles.formInput, styles.formInputFocused)}
+                type="text"
+                placeholder="YYYY-MM-DD"
+                placeholderClass="ph"
+                value={form.expireDate}
+                onInput={(e) => onChange('expireDate', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>备注说明</Text>
+              <Textarea
+                className={styles.formTextarea}
+                placeholder="选填，如抽检情况、注意事项等"
+                placeholderClass="ph"
+                value={form.remark}
+                onInput={(e) => onChange('remark', e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.formActions}>
+              <View className={styles.btnCancel} onClick={closeModal}>取消</View>
+              <View className={styles.btnSubmit} onClick={validateAndSubmit}>确认入库</View>
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </ScrollView>
   );
 };
