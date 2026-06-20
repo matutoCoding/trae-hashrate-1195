@@ -4,12 +4,13 @@ import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import { useAppStore } from '@/store';
 import QueueCard from '@/components/QueueCard';
-import { TicketStatus, ServiceType } from '@/types';
+import { ServiceType } from '@/types';
 import styles from './index.module.scss';
 
 const statusChips = [
   { key: 'all', label: '全部' },
   { key: 'waiting', label: '等待中' },
+  { key: 'calling', label: '叫号中' },
   { key: 'serving', label: '服务中' },
   { key: 'passed', label: '过号' },
   { key: 'completed', label: '已完成' },
@@ -22,6 +23,13 @@ const serviceTypeList: Array<{ key: ServiceType; icon: string; name: string; des
   { key: 'check', icon: '🔧', name: '检修', desc: '约15-30分钟' },
   { key: 'consult', icon: '💬', name: '咨询', desc: '约5-10分钟' },
 ];
+
+const serviceTypeIconMap: Record<string, string> = {
+  swap: '🔋 换电',
+  charge: '⚡ 快充',
+  check: '🔧 检修',
+  consult: '💬 咨询',
+};
 
 const QueuePage: React.FC = () => {
   const {
@@ -41,17 +49,16 @@ const QueuePage: React.FC = () => {
     phone: '',
     vehiclePlate: '',
     serviceType: 'swap' as ServiceType,
-    batteryHealthEstimate: 'A' as 'A' | 'B' | 'C' | 'D',
     remark: '',
   });
-
-  const currentStation = stations.find(s => s.id === selectedStationId) || stations[0];
 
   const filteredTickets = useMemo(() => {
     return queueTickets
       .filter(t => t.stationId === selectedStationId)
       .filter(t => activeChip === 'all' || t.status === activeChip)
       .sort((a, b) => {
+        if (a.status === 'calling' && b.status !== 'calling') return -1;
+        if (b.status === 'calling' && a.status !== 'calling') return 1;
         if (a.status === 'serving' && b.status !== 'serving') return -1;
         if (b.status === 'serving' && a.status !== 'serving') return 1;
         return a.sequence - b.sequence;
@@ -62,7 +69,7 @@ const QueuePage: React.FC = () => {
     const stationTickets = queueTickets.filter(t => t.stationId === selectedStationId);
     return {
       waiting: stationTickets.filter(t => t.status === 'waiting').length,
-      serving: stationTickets.filter(t => t.status === 'serving').length,
+      serving: stationTickets.filter(t => t.status === 'serving' || t.status === 'calling').length,
       completed: stationTickets.filter(t => t.status === 'completed').length,
     };
   }, [queueTickets, selectedStationId]);
@@ -77,7 +84,6 @@ const QueuePage: React.FC = () => {
       phone: '',
       vehiclePlate: '',
       serviceType: 'swap',
-      batteryHealthEstimate: 'A',
       remark: '',
     });
     setShowModal(true);
@@ -100,15 +106,13 @@ const QueuePage: React.FC = () => {
     }
 
     const newTicket = addTicket({
-      stationId: selectedStationId,
       ownerName: form.ownerName.trim(),
-      phone: form.phone.trim(),
+      ownerPhone: form.phone.trim(),
       vehiclePlate: form.vehiclePlate.trim().toUpperCase(),
       serviceType: form.serviceType,
       remark: form.remark.trim() || undefined,
     });
 
-    console.log('[Queue] 新车取号成功:', newTicket.ticketNo);
     Taro.showToast({ title: `取号成功 ${newTicket.ticketNo}`, icon: 'success' });
     setShowModal(false);
 
@@ -120,8 +124,7 @@ const QueuePage: React.FC = () => {
   const handleCallNext = () => {
     const next = callNextTicket();
     if (next) {
-      console.log('[Queue] 叫号:', next.ticketNo, next.ownerName);
-      Taro.showToast({ title: `叫号 ${next.ticketNo}`, icon: 'none' });
+      Taro.showToast({ title: `叫号 ${next.ticketNo} - ${next.ownerName}`, icon: 'none' });
     } else {
       Taro.showToast({ title: '暂无等待中的号码', icon: 'none' });
     }
@@ -135,7 +138,7 @@ const QueuePage: React.FC = () => {
     <ScrollView scrollY className={styles.page}>
       {currentCallingTicket && (
         <View className={styles.currentCall}>
-          <View className={styles.callBadge}>� 正在叫号</View>
+          <View className={styles.callBadge}>🔔 正在叫号</View>
           <Text className={styles.callLabel}>CURRENT CALLING</Text>
           <Text className={styles.callTicketNo}>{currentCallingTicket.ticketNo}</Text>
           <View className={styles.callInfo}>
@@ -147,11 +150,19 @@ const QueuePage: React.FC = () => {
             </View>
             <Text className={styles.callPlate}>{currentCallingTicket.vehiclePlate}</Text>
             <Text className={styles.callService}>
-              {currentCallingTicket.serviceType === 'swap' && '🔋 换电'}
-              {currentCallingTicket.serviceType === 'charge' && '⚡ 快充'}
-              {currentCallingTicket.serviceType === 'check' && '🔧 检修'}
-              {currentCallingTicket.serviceType === 'consult' && '💬 咨询'}
+              {serviceTypeIconMap[currentCallingTicket.serviceType] || currentCallingTicket.serviceTypeLabel}
             </Text>
+            {currentCallingTicket.passCount > 0 && (
+              <Text style={{
+                fontSize: 22,
+                color: '#FF7D00',
+                padding: '4rpx 12rpx',
+                background: 'rgba(255,125,0,0.15)',
+                borderRadius: 8,
+              }}>
+                已过号{currentCallingTicket.passCount}次
+              </Text>
+            )}
           </View>
         </View>
       )}

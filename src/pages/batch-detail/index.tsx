@@ -131,7 +131,7 @@ const BatchDetailPage: React.FC = () => {
         <View className={styles.infoCard}>
           <Text className={styles.cardTitle}>
             <View className={styles.titleBar} />
-            批次电池列表 ({batchBatteries.length})
+            批次电池列表 ({batchBatteries.length}{batchBatteries.length !== batch.totalQuantity ? `/${batch.totalQuantity}` : ''})
           </Text>
           {batchBatteries.length > 0 ? (
             <View className={styles.batteryList}>

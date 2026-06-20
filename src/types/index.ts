@@ -13,6 +13,9 @@ export type TicketStatus = 'waiting' | 'calling' | 'serving' | 'completed' | 'pa
 // 电池流向动作
 export type FlowAction = 'inbound' | 'outbound' | 'swap_in' | 'swap_out' | 'recall';
 
+// 服务类型
+export type ServiceType = 'swap' | 'charge' | 'check' | 'consult';
+
 // 电池信息
 export interface Battery {
   id: string;
@@ -112,7 +115,7 @@ export interface QueueTicket {
   ownerName: string;
   ownerPhone: string;
   vehiclePlate: string;
-  serviceType: 'swap' | 'charge' | 'check';
+  serviceType: 'swap' | 'charge' | 'check' | 'consult';
   serviceTypeLabel: string;
   passCount: number;
   estimatedWaitTime?: number;

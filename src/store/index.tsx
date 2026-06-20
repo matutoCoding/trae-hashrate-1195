@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { mockBatches, mockBatteries, mockFlowRecords } from '@/data/batch';
 import { mockRecalls, mockAffectedOwners } from '@/data/recall';
 import { mockQueueTickets, mockStations, mockDashboardStats } from '@/data/queue';
@@ -30,8 +30,9 @@ interface AppState {
 }
 
 interface AppContextType extends AppState {
+  currentCallingTicket: QueueTicket | null;
   setSelectedStationId: (id: string) => void;
-  callNextTicket: () => void;
+  callNextTicket: () => QueueTicket | null;
   handlePassTicket: (ticketId: string) => void;
   handleRequeue: (ticketId: string) => void;
   searchBatteriesByBatchNo: (batchNo: string) => Battery[];
@@ -48,24 +49,15 @@ interface AppContextType extends AppState {
     remark?: string;
   }) => BatteryBatch;
   addTicket: (payload: {
-    serviceType: 'swap' | 'charge' | 'check';
     ownerName: string;
     ownerPhone: string;
     vehiclePlate: string;
+    serviceType: 'swap' | 'charge' | 'check' | 'consult';
+    remark?: string;
   }) => QueueTicket;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-const mockVehiclePlates = [
-  '京A·12345', '京B·66666', '京C·88888', '京D·11111', '京E·22222',
-  '京F·33333', '京G·44444', '京H·55555', '京J·77777', '京K·99999',
-];
-const mockOwnerNames = ['钱伟', '孙浩', '周敏', '吴迪', '郑超', '冯磊', '韩雪', '朱琳', '何涛', '郭静'];
-const mockOwnerPhones = [
-  '13811112222', '13822223333', '13833334444', '13844445555', '13855556666',
-  '13866667777', '13877778888', '13888889999', '13899990000', '13800001111',
-];
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>({
@@ -80,41 +72,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     selectedStationId: 'st001',
   });
 
+  const currentCallingTicket = useMemo(() => {
+    return state.queueTickets.find(
+      t => t.status === 'calling' && t.stationId === state.selectedStationId
+    ) || null;
+  }, [state.queueTickets, state.selectedStationId]);
+
   const setSelectedStationId = useCallback((id: string) => {
     setState(prev => ({ ...prev, selectedStationId: id }));
   }, []);
 
-  const callNextTicket = useCallback(() => {
+  const callNextTicket = useCallback((): QueueTicket | null => {
+    let result: QueueTicket | null = null;
+
     setState(prev => {
-      const tickets = [...prev.queueTickets];
-      const currentCalling = tickets.find(t => t.status === 'calling');
-      const waitingList = tickets
-        .filter(t => t.status === 'waiting')
-        .sort((a, b) => a.sequence - b.sequence);
+      const tickets = prev.queueTickets.map(t => ({ ...t }));
 
-      const updatedTickets = tickets.map(t => {
-        if (currentCalling && t.id === currentCalling.id) {
-          return { ...t, status: 'passed' as const, passCount: t.passCount + 1 };
+      const currentCalling = tickets.find(
+        t => t.status === 'calling' && t.stationId === prev.selectedStationId
+      );
+
+      if (currentCalling) {
+        const idx = tickets.findIndex(t => t.id === currentCalling.id);
+        const newPassCount = tickets[idx].passCount + 1;
+        if (newPassCount >= 3) {
+          tickets[idx] = { ...tickets[idx], status: 'void', passCount: newPassCount };
+        } else {
+          const maxSequence = Math.max(...tickets.map(t => t.sequence));
+          tickets[idx] = {
+            ...tickets[idx],
+            status: 'waiting',
+            passCount: newPassCount,
+            sequence: maxSequence + 1,
+          };
         }
-        return t;
-      });
-
-      if (waitingList.length > 0) {
-        const nextIdx = updatedTickets.findIndex(t => t.id === waitingList[0].id);
-        updatedTickets[nextIdx] = {
-          ...updatedTickets[nextIdx],
-          status: 'calling' as const,
-          calledAt: new Date().toISOString(),
-        };
       }
 
-      return { ...prev, queueTickets: updatedTickets };
+      const waitingList = tickets
+        .filter(t => t.status === 'waiting' && t.stationId === prev.selectedStationId)
+        .sort((a, b) => a.sequence - b.sequence);
+
+      if (waitingList.length > 0) {
+        const nextIdx = tickets.findIndex(t => t.id === waitingList[0].id);
+        tickets[nextIdx] = {
+          ...tickets[nextIdx],
+          status: 'calling',
+          calledAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        };
+        result = tickets[nextIdx];
+      }
+
+      return { ...prev, queueTickets: tickets };
     });
+
+    return result;
   }, []);
 
   const handlePassTicket = useCallback((ticketId: string) => {
     setState(prev => {
-      const tickets = [...prev.queueTickets];
+      const tickets = prev.queueTickets.map(t => ({ ...t }));
       const idx = tickets.findIndex(t => t.id === ticketId);
       if (idx === -1) return prev;
 
@@ -140,7 +156,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const handleRequeue = useCallback((ticketId: string) => {
     setState(prev => {
-      const tickets = [...prev.queueTickets];
+      const tickets = prev.queueTickets.map(t => ({ ...t }));
       const idx = tickets.findIndex(t => t.id === ticketId);
       if (idx === -1) return prev;
 
@@ -177,35 +193,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const matchedBatteries = searchBatteriesByBatchNo(batchNo);
     const result: FlowOwnerInfo[] = [];
 
-    matchedBatteries.forEach((batt, index) => {
-      const hasOwner = batt.status === 'in_car' && batt.currentOwnerName;
-      if (hasOwner) {
-        const statusLabelMap: Record<string, string> = {
-          in_car: '已装车使用',
-          in_station: '电站待换',
-          charging: '充电中',
-          recalled: '已召回',
-          idle: '闲置',
-        };
-        result.push({
-          id: `fo_${batt.id}`,
-          name: batt.currentOwnerName || mockOwnerNames[index % mockOwnerNames.length],
-          phone: mockOwnerPhones[index % mockOwnerPhones.length],
-          vehiclePlate: mockVehiclePlates[index % mockVehiclePlates.length],
-          batteryId: batt.id,
-          batteryCode: batt.code,
-          status: batt.status,
-          statusLabel: statusLabelMap[batt.status] || batt.status,
-          healthLevel: batt.healthLevel,
-          capacity: batt.capacity,
-        });
-      }
+    const statusLabelMap: Record<string, string> = {
+      in_car: '已装车使用',
+      in_station: '电站待换',
+      charging: '充电中',
+      recalled: '已召回',
+      idle: '闲置',
+    };
+
+    matchedBatteries.forEach(batt => {
+      if (batt.status !== 'in_car') return;
+
+      const swapOutFlow = state.flowRecords
+        .filter(f => f.batteryId === batt.id && f.action === 'swap_out')
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+      const ownerName = swapOutFlow?.ownerName || batt.currentOwnerName || '';
+      if (!ownerName) return;
+
+      result.push({
+        id: `fo_${batt.id}`,
+        name: ownerName,
+        phone: swapOutFlow?.ownerPhone || '',
+        vehiclePlate: swapOutFlow?.vehiclePlate || '',
+        batteryId: batt.id,
+        batteryCode: batt.code,
+        status: batt.status,
+        statusLabel: statusLabelMap[batt.status] || batt.status,
+        healthLevel: batt.healthLevel,
+        capacity: batt.capacity,
+      });
     });
 
     return result;
-  }, [searchBatteriesByBatchNo]);
+  }, [searchBatteriesByBatchNo, state.flowRecords]);
 
-  const addBatch = useCallback<AppContextType['addBatch']>((payload) => {
+  const addBatch = useCallback((payload: {
+    batchNo: string;
+    supplier: string;
+    manufactureDate: string;
+    expireDate: string;
+    inspector: string;
+    healthLevel: BatteryHealthLevel;
+    totalQuantity: number;
+    remark?: string;
+  }): BatteryBatch => {
     const now = new Date();
     const newBatchId = `batch_${Date.now()}`;
     const todayStr = now.toISOString().slice(0, 10);
@@ -229,17 +261,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const healthCapMap: Record<BatteryHealthLevel, number> = { A: 98, B: 93, C: 85, D: 70 };
-    const sampleCount = Math.min(payload.totalQuantity, 8);
     const newBatteries: Battery[] = [];
     const codeSuffix = payload.batchNo.slice(-4) || 'NEW';
-    for (let i = 0; i < sampleCount; i++) {
+    const count = payload.totalQuantity;
+    for (let i = 0; i < count; i++) {
       const capBase = healthCapMap[payload.healthLevel];
       newBatteries.push({
         id: `bat_${Date.now()}_${i}`,
         code: `BAT-${codeSuffix}-${String(1000 + i).padStart(4, '0')}`,
         batchId: newBatchId,
         healthLevel: payload.healthLevel,
-        capacity: Math.max(70, capBase - i),
+        capacity: Math.max(70, capBase - Math.floor(i / 10)),
         cycleCount: Math.floor(Math.random() * 10),
         manufactureDate: payload.manufactureDate,
         expireDate: payload.expireDate,
@@ -278,48 +310,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newBatch;
   }, [state.selectedStationId]);
 
-  const addTicket = useCallback<AppContextType['addTicket']>((payload) => {
-    const station = state.stations.find(s => s.id === state.selectedStationId);
-    const now = new Date();
+  const addTicket = useCallback((payload: {
+    ownerName: string;
+    ownerPhone: string;
+    vehiclePlate: string;
+    serviceType: 'swap' | 'charge' | 'check' | 'consult';
+    remark?: string;
+  }): QueueTicket => {
+    let result: QueueTicket | null = null;
 
     setState(prev => {
+      const station = prev.stations.find(s => s.id === prev.selectedStationId);
       const stationTickets = prev.queueTickets.filter(t => t.stationId === prev.selectedStationId);
       const maxSeq = stationTickets.length > 0
         ? Math.max(...stationTickets.map(t => t.sequence))
         : 0;
-
       const existingA = stationTickets.filter(t => t.ticketNo.startsWith('A')).length;
       const newNo = `A${String(existingA + 1).padStart(3, '0')}`;
       const waitingCount = stationTickets.filter(t => t.status === 'waiting').length;
-      const estWait = waitingCount * 8;
 
       const serviceTypeLabelMap: Record<string, string> = {
         swap: '换电服务',
         charge: '充电服务',
         check: '电池检测',
+        consult: '业务咨询',
       };
 
       const newTicket: QueueTicket = {
         id: `t_${Date.now()}`,
         ticketNo: newNo,
         sequence: maxSeq + 1,
-        createdAt: now.toISOString().replace('T', ' ').slice(0, 19),
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
         status: 'waiting',
         ownerName: payload.ownerName,
         ownerPhone: payload.ownerPhone,
         vehiclePlate: payload.vehiclePlate,
         serviceType: payload.serviceType,
-        serviceTypeLabel: serviceTypeLabelMap[payload.serviceType],
+        serviceTypeLabel: serviceTypeLabelMap[payload.serviceType] || payload.serviceType,
         passCount: 0,
-        estimatedWaitTime: estWait,
+        estimatedWaitTime: waitingCount * 8,
         stationId: prev.selectedStationId,
         stationName: station?.name || '站点',
       };
 
-      const newStats = { ...prev.dashboardStats };
-      if (payload.serviceType === 'swap') {
-        newStats.waitingQueue = prev.dashboardStats.waitingQueue + 1;
-      }
+      result = newTicket;
 
       const newStations = prev.stations.map(s =>
         s.id === prev.selectedStationId
@@ -330,41 +364,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return {
         ...prev,
         queueTickets: [newTicket, ...prev.queueTickets],
-        dashboardStats: newStats,
+        dashboardStats: {
+          ...prev.dashboardStats,
+          waitingQueue: prev.dashboardStats.waitingQueue + 1,
+        },
         stations: newStations,
       };
     });
 
-    const stationTickets = state.queueTickets.filter(t => t.stationId === state.selectedStationId);
-    const existingA = stationTickets.filter(t => t.ticketNo.startsWith('A')).length;
-    const waitingCount = stationTickets.filter(t => t.status === 'waiting').length;
-    const serviceTypeLabelMap: Record<string, string> = {
-      swap: '换电服务',
-      charge: '充电服务',
-      check: '电池检测',
-    };
-    return {
-      id: `t_${Date.now()}`,
-      ticketNo: `A${String(existingA + 1).padStart(3, '0')}`,
-      sequence: stationTickets.length + 1,
-      createdAt: now.toISOString().replace('T', ' ').slice(0, 19),
-      status: 'waiting',
-      ownerName: payload.ownerName,
-      ownerPhone: payload.ownerPhone,
-      vehiclePlate: payload.vehiclePlate,
-      serviceType: payload.serviceType,
-      serviceTypeLabel: serviceTypeLabelMap[payload.serviceType],
-      passCount: 0,
-      estimatedWaitTime: waitingCount * 8,
-      stationId: state.selectedStationId,
-      stationName: station?.name || '站点',
-    };
-  }, [state.selectedStationId, state.stations, state.queueTickets]);
+    return result!;
+  }, []);
 
   return (
     <AppContext.Provider
       value={{
         ...state,
+        currentCallingTicket,
         setSelectedStationId,
         callNextTicket,
         handlePassTicket,

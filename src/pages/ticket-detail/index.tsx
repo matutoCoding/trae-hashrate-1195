@@ -84,7 +84,7 @@ const TicketDetailPage: React.FC = () => {
   };
 
   const showRequeue = ticket.status === 'passed' && ticket.passCount < 3;
-  const showPass = ticket.status === 'calling' || ticket.status === 'waiting';
+  const showPass = ticket.status === 'calling';
   const showComplete = ticket.status === 'serving' || ticket.status === 'calling';
 
   const timeline = [

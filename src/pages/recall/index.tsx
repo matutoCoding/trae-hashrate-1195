@@ -82,7 +82,7 @@ const RecallPage: React.FC = () => {
             <View className={styles.searchInputWrap}>
               <Input
                 className={classnames(styles.searchInput, styles.inputFocused)}
-                placeholder="如：BA-NINGDE-20260615-A001"
+                placeholder="如：BA-NINGDE-20240115-A0S1"
                 placeholderClass="ph"
                 value={searchText}
                 onInput={(e) => setSearchText(e.detail.value)}
@@ -93,7 +93,7 @@ const RecallPage: React.FC = () => {
             </View>
             <Text className={styles.searchTips}>
               💡 提示：输入宁德或比亚迪的已有批次号，可反查已经装车的车主、车牌和对应电池编号。
-              示例：BA-NINGDE-20260615-A001、BA-BYD-20260520-B002
+              示例：BA-NINGDE-20240115-A0S1、BA-BYD-20240510-C5M7
             </Text>
           </View>
 
@@ -242,7 +242,7 @@ const RecallPage: React.FC = () => {
               快速查询以下批次的真实流向：
             </Text>
             <View className={styles.subTabs} style={{ flexWrap: 'wrap' }}>
-              {['BA-NINGDE-20260615-A001', 'BA-NINGDE-20260610-A002', 'BA-BYD-20260520-B002'].map(bn => (
+              {['BA-NINGDE-20240115-A0S1', 'BA-NINGDE-20240320-B2N3', 'BA-BYD-20240510-C5M7'].map(bn => (
                 <View
                   key={bn}
                   className={styles.subTab}
