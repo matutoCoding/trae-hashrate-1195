@@ -1,0 +1,126 @@
+@use '../../styles/variables.scss' as *;
+
+.recallCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  border-left: 8rpx solid $color-error;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 0;
+  margin-right: $spacing-md;
+}
+
+.recallNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 8rpx;
+  @include text-ellipsis;
+}
+
+.batchRef {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  background: $color-bg-primary-soft;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-xs;
+  display: inline-block;
+  @include text-ellipsis;
+  max-width: 100%;
+}
+
+.reason {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-normal;
+  padding: $spacing-md 0;
+  border-top: 1rpx solid $color-divider;
+  @include text-ellipsis-multi(2);
+}
+
+.progressSection {
+  margin-top: $spacing-md;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.progressLabel {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.progressText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.progressTrack {
+  height: 16rpx;
+  background: $color-divider;
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: $radius-round;
+  transition: width $transition-slow;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $color-divider;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.metaNum {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  line-height: $line-height-tight;
+}
+
+.metaLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.priorityWrap {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}

@@ -1,0 +1,28 @@
+page {
+  background-color: #F5F7FA;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28rpx;
+  color: #1D2129;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+view, text, button, input, scroll-view {
+  box-sizing: border-box;
+}
+
+image {
+  display: block;
+}
+
+button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  line-height: inherit;
+}
+
+button::after {
+  border: none;
+}

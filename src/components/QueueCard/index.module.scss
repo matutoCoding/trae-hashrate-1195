@@ -1,0 +1,191 @@
+@use '../../styles/variables.scss' as *;
+
+.queueCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+  position: relative;
+  overflow: hidden;
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.cardCalling {
+  border: 2rpx solid $color-warning;
+  background: linear-gradient(135deg, #FFF7E6 0%, #FFFFFF 60%);
+}
+
+.cardServing {
+  border: 2rpx solid $color-primary;
+  background: linear-gradient(135deg, #E6FFFB 0%, #FFFFFF 60%);
+}
+
+.cardPassed {
+  opacity: 0.85;
+  border-left: 6rpx solid $color-warning;
+}
+
+.cardVoid {
+  opacity: 0.6;
+  border-left: 6rpx solid $color-error;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.ticketNoWrap {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.ticketNo {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  letter-spacing: 2rpx;
+}
+
+.sequence {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.ticketBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56rpx;
+  height: 40rpx;
+  padding: 0 12rpx;
+  background: $color-primary;
+  color: $color-text-white;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.badgeCalling {
+  background: $color-warning;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.badgeServing {
+  background: $color-primary;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.ownerSection {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md 0;
+  border-top: 1rpx solid $color-divider;
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, $color-primary, $color-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.ownerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.ownerName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 6rpx;
+}
+
+.plateNo {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  background: linear-gradient(135deg, #1E56A0, #166DCC);
+  color: $color-text-white;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  letter-spacing: 1rpx;
+}
+
+.waitTime {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.waitTimeNum {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  line-height: $line-height-tight;
+}
+
+.waitTimeLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-md;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.serviceInfo {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1;
+  min-width: 0;
+}
+
+.serviceTag {
+  padding: 6rpx 16rpx;
+  background: $color-bg-primary-soft;
+  color: $color-primary;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.timeText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.passBadge {
+  padding: 4rpx 12rpx;
+  background: $color-bg-warning-soft;
+  color: $color-warning;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+}

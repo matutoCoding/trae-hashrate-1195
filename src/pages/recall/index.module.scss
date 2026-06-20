@@ -1,0 +1,264 @@
+@use '../../styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: 0 $page-padding 120rpx;
+}
+
+.tabs {
+  display: flex;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 8rpx;
+  margin: $spacing-lg 0;
+  box-shadow: $shadow-card;
+}
+
+.tabItem {
+  flex: 1;
+  padding: 20rpx 0;
+  text-align: center;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+}
+
+.tabActive {
+  background: linear-gradient(135deg, $color-error, #FF8A80);
+  color: $color-text-white;
+  box-shadow: 0 4rpx 12rpx rgba(245, 63, 63, 0.25);
+}
+
+.searchSection {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.searchLabel {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-sm;
+  display: block;
+  font-weight: $font-weight-medium;
+}
+
+.searchInputWrap {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.searchInput {
+  flex: 1;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  padding: 20rpx 24rpx;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  border: 2rpx solid transparent;
+  transition: all $transition-base;
+}
+
+.inputFocused {
+  border-color: $color-primary;
+  background: $color-bg-card;
+}
+
+.searchBtn {
+  @include button-reset;
+  padding: 20rpx 32rpx;
+  background: linear-gradient(135deg, $color-primary, $color-primary-light);
+  color: $color-text-white;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.97);
+  }
+}
+
+.searchTips {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  line-height: $line-height-normal;
+  padding: $spacing-sm $spacing-md;
+  background: $color-bg-primary-soft;
+  border-radius: $radius-sm;
+}
+
+.searchResult {
+  margin-top: $spacing-lg;
+  padding-top: $spacing-lg;
+  border-top: 2rpx dashed $color-divider;
+}
+
+.resultTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.resultBadge {
+  padding: 4rpx 16rpx;
+  background: $color-bg-error-soft;
+  color: $color-error;
+  border-radius: $radius-round;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.ownerItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+}
+
+.ownerAvatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, $color-warning, #FF9F43);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.ownerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.ownerName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 6rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.plateTag {
+  padding: 2rpx 10rpx;
+  background: linear-gradient(135deg, #1E56A0, #166DCC);
+  color: $color-text-white;
+  border-radius: 4rpx;
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+.ownerPhone {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  @include text-ellipsis;
+}
+
+.ownerStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6rpx;
+}
+
+.statusIcon {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: $radius-round;
+}
+
+.statusText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.titleBar {
+  width: 8rpx;
+  height: 32rpx;
+  background: linear-gradient(180deg, $color-error, #FF8A80);
+  border-radius: $radius-xs;
+}
+
+.sectionCount {
+  padding: 4rpx 16rpx;
+  background: $color-bg-error-soft;
+  color: $color-error;
+  border-radius: $radius-round;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.fabButton {
+  position: fixed;
+  right: $spacing-lg;
+  bottom: 140rpx;
+  padding: 0 32rpx;
+  height: 96rpx;
+  border-radius: $radius-button;
+  background: linear-gradient(135deg, $color-error, #FF8A80);
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  box-shadow: 0 8rpx 32rpx rgba(245, 63, 63, 0.4);
+  z-index: 100;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.emptyState {
+  padding: 80rpx 0;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 72rpx;
+  opacity: 0.3;
+  margin-bottom: $spacing-md;
+}
+
+.emptyText {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+}

@@ -1,0 +1,127 @@
+@use '../../styles/variables.scss' as *;
+
+.batchCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.99);
+    box-shadow: $shadow-card-hover;
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 0;
+  margin-right: $spacing-md;
+}
+
+.batchNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 8rpx;
+  @include text-ellipsis;
+}
+
+.supplier {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  @include text-ellipsis;
+}
+
+.cardContent {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-sm;
+  padding: $spacing-md 0;
+  border-top: 1rpx solid $color-divider;
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statNum {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  line-height: $line-height-tight;
+}
+
+.statNumSuccess {
+  color: $color-success;
+}
+
+.statNumPrimary {
+  color: $color-primary;
+}
+
+.statNumError {
+  color: $color-error;
+}
+
+.statLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-md;
+}
+
+.footerInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+  flex: 1;
+}
+
+.infoItem {
+  display: flex;
+  align-items: center;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.infoLabel {
+  margin-right: 8rpx;
+}
+
+.healthBar {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: $spacing-md;
+}
+
+.barTrack {
+  flex: 1;
+  height: 12rpx;
+  background: $color-divider;
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: $radius-round;
+}
